@@ -51,6 +51,8 @@ import {Services} from '../../../src/services';
 import {VideoEvents, delegateAutoplay} from '../../../src/video-interface';
 import {
   childElement,
+  childElementByTag,
+  childElementsByTag,
   closestAncestorElementBySelector,
   createElementWithAttributes,
   isAmpElement,
@@ -70,7 +72,7 @@ import {getMode} from '../../../src/mode';
 import {htmlFor} from '../../../src/static-template';
 import {isExperimentOn} from '../../../src/experiments';
 import {isMediaDisplayed, setTextBackgroundColor} from './utils';
-import {toggle} from '../../../src/style';
+import {scale, setStyle, toggle, translate} from '../../../src/style';
 import {upgradeBackgroundAudio} from './audio';
 
 /**
@@ -268,6 +270,11 @@ export class AmpStoryPage extends AMP.BaseElement {
 
     /** @private {?string} A textual description of the content of the page. */
     this.description_ = null;
+
+    
+    this.panels_ = Array.prototype.slice.call(
+      this.element.querySelectorAll('amp-story-panel')
+    );
   }
 
   /**
@@ -1133,6 +1140,14 @@ export class AmpStoryPage extends AMP.BaseElement {
       return;
     }
 
+    if (this.hasPanels_()) {
+      if (this.hasFollowingPanel_(NavigationDirection.PREVIOUS)) {
+        this.animateToFollowingPanel_();
+        return;
+      }
+      this.resetPanels_();
+    }
+
     this.switchTo_(pageId, NavigationDirection.PREVIOUS);
   }
 
@@ -1155,7 +1170,117 @@ export class AmpStoryPage extends AMP.BaseElement {
       return;
     }
 
+    if (this.hasPanels_()) {
+      if (this.hasFollowingPanel_(NavigationDirection.NEXT)) {
+        this.animateToFollowingPanel_();
+        return;
+      }
+      this.resetPanels_();
+    }
+
     this.switchTo_(pageId, NavigationDirection.NEXT);
+  }
+
+  /**
+   * @return {boolean}
+   * @private
+   */
+  hasPanels_() {
+    return !!this.panels_.length;
+  }
+
+  /**
+   * @param {!NavigationDirection} direction
+   * @return {boolean}
+   * @private
+   */
+  hasFollowingPanel_(direction) {
+    if (!this.hasPanels_()) {
+      return false;
+    }
+
+    const panels = this.panels_;
+
+    // if there's no active panel, it means that we've just come  from another page,
+    // and need to make the next one active.
+    if (!this.activePanel) {
+      this.activePanel =
+        panels[direction === NavigationDirection.NEXT ? 0 : panels.length - 1];
+      console.log('no active panel, activate this one', this.activePanel);
+    } else {
+      // there was an active panel, so switch from this one to the next
+      this.activePanel.removeAttribute('active');
+      const index = panels.indexOf(this.activePanel);
+      this.activePanel =
+        index === -1
+          ? null
+          : panels[
+              direction === NavigationDirection.NEXT ? index + 1 : index - 1
+            ];
+    }
+
+    if (this.activePanel) {
+      this.activePanel.setAttribute('active', '');
+    }
+
+    return !!this.activePanel;
+  }
+
+  /**
+   * @private
+   */
+  animateToFollowingPanel_() {
+    const ampImg = this.element.querySelector('amp-img');
+    const img = ampImg.querySelector('img');
+
+    const {naturalWidth: imgWidth, naturalHeight: imgHeight} = img;
+
+    const top = parseInt(this.activePanel.getAttribute('top'), 10);
+    const left = parseInt(this.activePanel.getAttribute('left'), 10);
+    const width = parseInt(this.activePanel.getAttribute('width'), 10);
+    const height = parseInt(this.activePanel.getAttribute('height'), 10);
+
+    const ratioX = innerWidth / img.naturalWidth;
+    const ratioY = innerHeight / img.naturalHeight;
+
+    if (ratioX < ratioY) {
+      const panelTallerThanViewport = width / height < innerWidth / innerHeight;
+      console.log('panel is shorter than viewport: ', panelTallerThanViewport);
+
+      const scaleFactor = panelTallerThanViewport
+        ? innerHeight / (height * ratioX)
+        : innerWidth / (width * ratioX);
+      console.log('scaleFactor:', scaleFactor);
+
+      const originX = (left + width / 2) * ratioX;
+      const originY = (top + height / 2) * ratioX;
+      setStyle(
+        ampImg,
+        'transform-origin',
+        (left + width / 2) * ratioX + 'px ' + (top + height / 2) * ratioX + 'px'
+      );
+      console.log('transform-origin: ', originX + 'px ' + originY + 'px');
+
+      console.log();
+      setStyle(
+        ampImg,
+        'transform',
+        translate(-originX + innerWidth / 2, -originY + innerHeight / 2) +
+        translate(0, -(innerHeight - ampImg.offsetHeight) / 2) + // center page
+        scale(scaleFactor) // scale to fit panel
+      );
+    }
+
+    return;
+  }
+
+  /**
+   * @private
+   */
+  resetPanels_() {
+    // TODO: don't animate
+    const ampImg = childElementByTag(this.element, 'amp-img');
+    setStyle(ampImg, 'transform', '');
   }
 
   /**

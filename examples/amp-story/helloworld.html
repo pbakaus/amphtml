@@ -1,5 +1,5 @@
 <!doctype html>
-<html amp lang="en">
+<html amp lang="en" dir="rtl">
   <head>
     <meta charset="utf-8">
     <script async src="https://cdn.ampproject.org/v0.js"></script>
@@ -17,6 +17,14 @@
       amp-story-page {
         background: white;
       }
+      amp-img {
+        transition: transform 1000ms ease-out;
+      }
+      html[amp] amp-story-grid-layer {
+        grid-gap: 0;
+        padding: 0;
+        align-content: center;
+      }
       h1 {
         font-size: 2.875em;
         font-weight: normal;
@@ -29,26 +37,35 @@
   <body>
     <amp-story standalone>
 
-      <amp-story-page id="cover" auto-advance-after="5s">
-        <amp-story-grid-layer template="vertical">
-          <h1>Hello World</h1>
-          <p>This is the cover page of this story.</p>
-        </amp-story-grid-layer>
+      <amp-story-page id="cover">         
+          <amp-img src="./img/manga/coverleft.jpg" layout="fill" width="550" height="850"></amp-img>
       </amp-story-page>
 
-      <amp-story-page id="page-1" auto-advance-after="5s">
-        <amp-story-grid-layer template="vertical">
-          <h1>First Page</h1>
-          <p>This is the first page of this story.</p>
-        </amp-story-grid-layer>
+      <amp-story-page id="page-1">
+          <amp-img src="./img/manga/001.jpg" layout="fill" width="550" height="850"></amp-img>
+          <amp-story-panel left="325" top="0" width="199" height="611"></amp-story-panel>
+          <amp-story-panel left="152" top="31" width="133" height="648"></amp-story-panel>
+          <amp-story-panel left="29" top="110" width="115" height="740"></amp-story-panel>
       </amp-story-page>
 
       <amp-story-page id="page-2">
-        <amp-story-grid-layer template="vertical">
-          <h1>Second Page</h1>
-          <p>This is the second page of this story.</p>
-        </amp-story-grid-layer>
+          <amp-img src="./img/manga/002.jpg" layout="fill" width="550" height="850"></amp-img>
+          
       </amp-story-page>
+
+      <amp-story-page id="page-3">
+          <amp-story-grid-layer template="vertical">
+              <amp-img src="./img/manga/003.jpg" layout="responsive" width="550" height="850"></amp-img>
+              <amp-story-panel width="138" height="200" left="411" top="0"></amp-story-panel>
+              <amp-story-panel width="147" height="221" left="388" top="203"></amp-story-panel>
+          </amp-story-grid-layer>
+      </amp-story-page>
+
+      <amp-story-page id="page-4">
+          <amp-img src="./img/manga/004.jpg" layout="fill" width="550" height="850"></amp-img>
+          
+      </amp-story-page>
+
     </amp-story>
   </body>
 </html>
