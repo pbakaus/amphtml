@@ -134,6 +134,9 @@ export class AmpForm {
     /** @const @private {!HTMLFormElement} */
     this.form_ = element;
 
+    /** @const @private {!../../../src/service/ampdoc-impl.AmpDoc}  */
+    this.ampdoc_ = Services.ampdoc(this.form_);
+
     /** @const @private {!../../../src/service/template-impl.Templates} */
     this.templates_ = Services.templatesFor(this.win_);
 
@@ -143,10 +146,10 @@ export class AmpForm {
     /** @const @private {!../../../src/service/action-impl.ActionService} */
     this.actions_ = Services.actionServiceForDoc(this.form_);
 
-    /** @const @private {!../../../src/service/resources-impl.ResourcesDef} */
+    /** @const @private {!../../../src/service/resources-interface.ResourcesInterface} */
     this.resources_ = Services.resourcesForDoc(this.form_);
 
-    /** @const @private {!../../../src/service/viewer-impl.Viewer}  */
+    /** @const @private {!../../../src/service/viewer-interface.ViewerInterface}  */
     this.viewer_ = Services.viewerForDoc(this.form_);
 
     /**
@@ -359,7 +362,7 @@ export class AmpForm {
 
   /** @private */
   installEventHandlers_() {
-    this.viewer_.whenNextVisible().then(() => {
+    this.ampdoc_.whenNextVisible().then(() => {
       const autofocus = this.form_.querySelector('[autofocus]');
       if (autofocus) {
         tryFocus(autofocus);
@@ -578,26 +581,48 @@ export class AmpForm {
     // Set ourselves to the SUBMITTING State
     this.setState_(FormState.SUBMITTING);
 
+    // Promises to run before submit without timeout.
+    const requiredActionPromises = [];
     // Promises to run before submitting the form
     const presubmitPromises = [];
     presubmitPromises.push(this.doVarSubs_(varSubsFields));
     iterateCursor(asyncInputs, asyncInput => {
-      presubmitPromises.push(this.getValueForAsyncInput_(asyncInput));
+      const asyncCall = this.getValueForAsyncInput_(asyncInput);
+      if (
+        asyncInput.classList.contains(AsyncInputClasses.ASYNC_REQUIRED_ACTION)
+      ) {
+        requiredActionPromises.push(asyncCall);
+      } else {
+        presubmitPromises.push(asyncCall);
+      }
     });
 
-    return this.waitOnPromisesOrTimeout_(
-      presubmitPromises,
-      SUBMIT_TIMEOUT
-    ).then(
-      () => this.handlePresubmitSuccess_(trust),
-      error => {
-        const detail = dict();
-        if (error && error.message) {
-          detail['error'] = error.message;
-        }
-        return this.handleSubmitFailure_(error, detail);
-      }
+    return Promise.all(requiredActionPromises).then(
+      () => {
+        return this.waitOnPromisesOrTimeout_(
+          presubmitPromises,
+          SUBMIT_TIMEOUT
+        ).then(
+          () => this.handlePresubmitSuccess_(trust),
+          error => this.handlePresubmitError_(error)
+        );
+      },
+      error => this.handlePresubmitError_(error)
     );
+  }
+
+  /**
+   * @private
+   * Handle form error for presubmit async calls
+   * @param {*} error
+   * @return {Promise}
+   */
+  handlePresubmitError_(error) {
+    const detail = dict();
+    if (error && error.message) {
+      detail['error'] = error.message;
+    }
+    return this.handleSubmitFailure_(error, detail);
   }
 
   /**
@@ -703,14 +728,14 @@ export class AmpForm {
           request.xhrUrl,
           request.fetchOpt
         );
-        return this.ssrTemplateHelper_.fetchAndRenderTemplate(
+        return this.ssrTemplateHelper_.ssr(
           this.form_,
           request,
           this.templatesForSsr_()
         );
       })
       .then(
-        response => this.handleSsrTemplateSuccess_(response),
+        response => this.handleSsrTemplateResponse_(response),
         error => {
           const detail = dict();
           if (error && error.message) {
@@ -744,12 +769,20 @@ export class AmpForm {
   }
 
   /**
-   * Transition the form to the submit success state.
+   * Transition the form to the submit-success or submit-error state depending on the response status.
    * @param {!JsonObject} response
    * @return {!Promise}
    * @private
    */
-  handleSsrTemplateSuccess_(response) {
+  handleSsrTemplateResponse_(response) {
+    const init = response['init'];
+    if (init) {
+      const status = init['status'];
+      if (status >= 300) {
+        /** HTTP status codes of 300+ mean redirects and errors. */
+        return this.handleSubmitFailure_(status, response);
+      }
+    }
     return this.handleSubmitSuccess_(tryResolve(() => response));
   }
 
@@ -1131,7 +1164,7 @@ export class AmpForm {
       container.setAttribute('aria-live', 'assertive');
       if (this.templates_.hasTemplate(container)) {
         p = this.ssrTemplateHelper_
-          .renderTemplate(devAssert(container), data)
+          .applySsrOrCsrTemplate(devAssert(container), data)
           .then(rendered => {
             rendered.id = messageId;
             rendered.setAttribute('i-amphtml-rendered', '');

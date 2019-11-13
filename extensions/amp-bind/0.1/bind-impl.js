@@ -177,7 +177,7 @@ export class Bind {
      */
     this.maxNumberOfBindings_ = 1000;
 
-    /** @const @private {!../../../src/service/resources-impl.ResourcesDef} */
+    /** @const @private {!../../../src/service/resources-interface.ResourcesInterface} */
     this.resources_ = Services.resourcesForDoc(ampdoc);
 
     /**
@@ -192,7 +192,7 @@ export class Bind {
     /** @private {?./bind-validator.BindValidator} */
     this.validator_ = null;
 
-    /** @const @private {!../../../src/service/viewer-impl.Viewer} */
+    /** @const @private {!../../../src/service/viewer-interface.ViewerInterface} */
     this.viewer_ = Services.viewerForDoc(this.ampdoc);
     this.viewer_.onMessageRespond('premutate', this.premutate_.bind(this));
 
@@ -200,7 +200,7 @@ export class Bind {
      * Resolved when the service finishes scanning the document for bindings.
      * @const @private {Promise}
      */
-    this.initializePromise_ = this.viewer_
+    this.initializePromise_ = ampdoc
       .whenFirstVisible()
       .then(() => {
         if (opt_win) {
@@ -343,9 +343,35 @@ export class Bind {
    * @return {!Promise}
    */
   setStateWithExpression(expression, scope) {
-    dev().info(TAG, 'setState:', expression);
-    this.setStatePromise_ = this.evaluateExpression_(expression, scope)
-      .then(result => this.setState(result))
+    return this.evaluateExpression_(expression, scope).then(result =>
+      this.setStateAndUpdateHistory_(result)
+    );
+  }
+
+  /**
+   * Sanitizes a state object and merges the resulting object into the current
+   * state.
+   * @param {!JsonObject} state
+   * @return {!Promise}
+   */
+  setStateWithObject(state) {
+    // Sanitize and copy state
+    const result = this.copyJsonObject_(state);
+    if (!result) {
+      return Promise.reject('Invalid state');
+    }
+    return this.setStateAndUpdateHistory_(result);
+  }
+
+  /**
+   * Merges a state object into the current global state.
+   * @param {!JsonObject} state
+   * @return {!Promise}
+   * @private
+   */
+  setStateAndUpdateHistory_(state) {
+    dev().info(TAG, 'setState:', state);
+    this.setStatePromise_ = this.setState(state)
       .then(() => this.getDataForHistory_())
       .then(data => {
         // Don't bother calling History.replace with empty data.
@@ -510,6 +536,20 @@ export class Bind {
   }
 
   /**
+   * Returns a copy of the global state for a given field-based expression,
+   * e.g. "foo.bar".
+   * @param {string} expr
+   * @return {*}
+   */
+  getState(expr) {
+    const value = expr ? getValueForExpr(this.state_, expr) : undefined;
+    if (isObject(value) || isArray(value)) {
+      return this.copyJsonObject_(/** @type {JsonObject} */ (value));
+    }
+    return value;
+  }
+
+  /**
    * Returns the stringified value of the global state for a given field-based
    * expression, e.g. "foo.bar.baz".
    * @param {string} expr
@@ -547,10 +587,6 @@ export class Bind {
       .then(() => {
         // Listen for DOM updates (e.g. template render) to rescan for bindings.
         root.addEventListener(AmpEvents.DOM_UPDATE, e => this.onDomUpdate_(e));
-        // In dev mode, check default values against initial expression results.
-        if (getMode().development) {
-          return this.evaluate_().then(results => this.verify_(results));
-        }
       })
       .then(() => {
         const ampStates = root.querySelectorAll('AMP-STATE');
@@ -569,6 +605,11 @@ export class Bind {
         // elements' local data is parsed and processed (not remote data).
         this.viewer_.sendMessage('bindReady', undefined);
         this.dispatchEventForTesting_(BindEvents.INITIALIZE);
+
+        // In dev mode, check default values against initial expression results.
+        if (getMode().development) {
+          return this.evaluate_().then(results => this.verify_(results));
+        }
       });
   }
 
@@ -1134,7 +1175,7 @@ export class Bind {
       // Useful for rendering amp-list with amp-bind state via [src].
       if (
         newValue === undefined ||
-        deepEquals(newValue, previousResult, /* depth */ 10)
+        deepEquals(newValue, previousResult, /* depth */ 20)
       ) {
       } else {
         boundProperty.previousResult = newValue;
@@ -1355,6 +1396,11 @@ export class Bind {
             // when a child option[selected] attribute changes.
             this.updateSelectForSafari_(element, property, newValue);
           }
+        } else if (typeof newValue === 'object' && newValue !== null) {
+          // If newValue is an object or array (e.g. amp-list[src] binding),
+          // don't bother updating the element since attribute values like
+          // "[Object object]" have no meaning in the DOM.
+          mutated = true;
         } else if (newValue !== oldValue) {
           mutated = this.rewriteAttributes_(
             element,

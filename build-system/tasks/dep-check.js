@@ -18,7 +18,7 @@
 const babelify = require('babelify');
 const BBPromise = require('bluebird');
 const browserify = require('browserify');
-const depCheckConfig = require('../dep-check-config');
+const depCheckConfig = require('../test-configs/dep-check-config');
 const fs = BBPromise.promisifyAll(require('fs-extra'));
 const gulp = require('gulp');
 const log = require('fancy-log');
@@ -26,11 +26,15 @@ const minimatch = require('minimatch');
 const path = require('path');
 const source = require('vinyl-source-stream');
 const through = require('through2');
+const {
+  createCtrlcHandler,
+  exitCtrlcHandler,
+} = require('../common/ctrlcHandler');
 const {BABELIFY_GLOBAL_TRANSFORM} = require('./helpers');
-const {createCtrlcHandler, exitCtrlcHandler} = require('../ctrlcHandler');
+const {compileJison} = require('./compile-jison');
 const {css} = require('./css');
 const {cyan, red, yellow} = require('ansi-colors');
-const {isTravisBuild} = require('../travis');
+const {isTravisBuild} = require('../common/travis');
 
 const root = process.cwd();
 const absPathRegExp = new RegExp(`^${root}/`);
@@ -204,7 +208,10 @@ function getGraph(entryModule) {
 
   // TODO(erwinm): Try and work this in with `gulp build` so that
   // we're not running browserify twice on travis.
-  const bundler = browserify(entryModule, {debug: true}).transform(
+  const bundler = browserify(entryModule, {
+    debug: true,
+    fast: true,
+  }).transform(
     babelify,
     Object.assign({}, BABELIFY_GLOBAL_TRANSFORM, {compact: false})
   );
@@ -296,6 +303,7 @@ function runRules(modules) {
 async function depCheck() {
   const handlerProcess = createCtrlcHandler('dep-check');
   await css();
+  await compileJison();
   if (!isTravisBuild()) {
     log('Checking dependencies...');
   }
@@ -313,7 +321,7 @@ async function depCheck() {
         log(
           yellow('NOTE:'),
           'If a dependency is valid, add it to one of the whitelists in',
-          cyan('build-system/dep-check-config.js')
+          cyan('build-system/test-configs/dep-check-config.js')
         );
         const reason = new Error('Dependency checks failed');
         reason.showStack = false;
@@ -344,7 +352,7 @@ function toArrayOrDefault(value, defaultValue) {
  * Flatten array of arrays.
  *
  * @param {!Array<!Array>} arr
- * @return {*} TODO(#23582): Specify return type
+ * @return {!Array}
  */
 function flatten(arr) {
   return [].concat.apply([], arr);

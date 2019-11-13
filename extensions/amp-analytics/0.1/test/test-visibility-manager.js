@@ -15,6 +15,7 @@
  */
 
 import {AnalyticsEventType} from '../events';
+import {FIE_EMBED_PROP} from '../../../../src/iframe-helper';
 import {
   IntersectionObserverPolyfill,
   nativeIntersectionObserverSupported,
@@ -23,9 +24,11 @@ import {Services} from '../../../../src/services';
 import {
   VisibilityManagerForDoc,
   VisibilityManagerForEmbed,
+  provideVisibilityManager,
 } from '../visibility-manager';
 import {VisibilityState} from '../../../../src/visibility-state';
 import {layoutRectLtwh, rectIntersection} from '../../../../src/layout-rect';
+import {setParentWindow} from '../../../../src/service';
 
 class IntersectionObserverStub {
   constructor(callback, options) {
@@ -78,10 +81,10 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
     clock = sandbox.useFakeTimers();
     clock.tick(1);
 
-    viewer = win.services.viewer.obj;
-    sandbox.stub(viewer, 'getFirstVisibleTime').callsFake(() => 1);
-    viewport = win.services.viewport.obj;
-    startVisibilityHandlerCount = viewer.visibilityObservable_.getHandlerCount();
+    viewer = win.__AMP_SERVICES.viewer.obj;
+    sandbox.stub(ampdoc, 'getFirstVisibleTime').returns(1);
+    viewport = win.__AMP_SERVICES.viewport.obj;
+    startVisibilityHandlerCount = getVisibilityHandlerCount();
 
     root = new VisibilityManagerForDoc(ampdoc);
 
@@ -94,13 +97,17 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
     });
   });
 
+  function getVisibilityHandlerCount() {
+    return ampdoc.visibilityStateHandlers_.getHandlerCount();
+  }
+
   it('should initialize correctly backgrounded', () => {
     viewer.setVisibilityState_(VisibilityState.HIDDEN);
     root = new VisibilityManagerForDoc(ampdoc);
 
     expect(root.parent).to.be.null;
     expect(root.ampdoc).to.equal(ampdoc);
-    expect(root.getStartTime()).to.equal(viewer.getFirstVisibleTime());
+    expect(root.getStartTime()).to.equal(ampdoc.getFirstVisibleTime());
     expect(root.isBackgrounded()).to.be.true;
     expect(root.isBackgroundedAtStart()).to.be.true;
     expect(root.children_).to.be.null; // Don't take extra memory.
@@ -116,7 +123,7 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
   it('should initialize correctly foregrounded', () => {
     expect(root.parent).to.be.null;
     expect(root.ampdoc).to.equal(ampdoc);
-    expect(root.getStartTime()).to.equal(viewer.getFirstVisibleTime());
+    expect(root.getStartTime()).to.equal(ampdoc.getFirstVisibleTime());
     expect(root.isBackgrounded()).to.be.false;
     expect(root.isBackgroundedAtStart()).to.be.false;
 
@@ -146,7 +153,7 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
   });
 
   it('should resolve root layout box for in-a-box', () => {
-    win.AMP_MODE = {runtime: 'inabox'};
+    win.__AMP_MODE = {runtime: 'inabox'};
     root = new VisibilityManagerForDoc(ampdoc);
     const rootElement = win.document.documentElement;
     sandbox.stub(viewport, 'getLayoutRect').callsFake(element => {
@@ -164,9 +171,7 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
   });
 
   it('should switch visibility based on viewer for main doc', () => {
-    expect(viewer.visibilityObservable_.getHandlerCount()).equal(
-      startVisibilityHandlerCount + 1
-    );
+    expect(getVisibilityHandlerCount()).equal(startVisibilityHandlerCount + 1);
     expect(root.getRootVisibility()).to.equal(1);
 
     // Go prerender.
@@ -180,11 +185,11 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
     // Go visible.
     viewer.setVisibilityState_(VisibilityState.VISIBLE);
     expect(root.getRootVisibility()).to.equal(1);
-    expect(root.getStartTime()).to.equal(viewer.getFirstVisibleTime());
+    expect(root.getStartTime()).to.equal(ampdoc.getFirstVisibleTime());
   });
 
   it('should switch visibility for in-a-box', () => {
-    win.AMP_MODE = {runtime: 'inabox'};
+    win.__AMP_MODE = {runtime: 'inabox'};
     root = new VisibilityManagerForDoc(ampdoc);
 
     // Check observer is correctly set.
@@ -243,21 +248,39 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(1);
     root.dispose();
-    spec = {visiblePercentageThresholds: [[0, 10], [10, 100]]};
+    spec = {
+      visiblePercentageThresholds: [
+        [0, 10],
+        [10, 100],
+      ],
+    };
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(2);
     root.dispose();
-    spec = {visiblePercentageThresholds: [[-1, 10], [10, 101]]};
+    spec = {
+      visiblePercentageThresholds: [
+        [-1, 10],
+        [10, 101],
+      ],
+    };
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(0);
     root.dispose();
-    spec = {visiblePercentageThresholds: [[1, 2, 3], ['invalid', 3]]};
+    spec = {
+      visiblePercentageThresholds: [
+        [1, 2, 3],
+        ['invalid', 3],
+      ],
+    };
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(0);
     root.dispose();
     spec = {
       visiblePercentageMin: 0,
-      visiblePercentageThresholds: [[0, 10], [10, 100]],
+      visiblePercentageThresholds: [
+        [0, 10],
+        [10, 100],
+      ],
     };
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(1);
@@ -272,12 +295,22 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(1);
     root.dispose();
-    spec = {visiblePercentageThresholds: [[0, 0], [100, 100]]};
+    spec = {
+      visiblePercentageThresholds: [
+        [0, 0],
+        [100, 100],
+      ],
+    };
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(2);
     root.dispose();
     spec = {
-      visiblePercentageThresholds: [[0, 0], [0, 50], [50, 100], [100, 100]],
+      visiblePercentageThresholds: [
+        [0, 0],
+        [0, 50],
+        [50, 100],
+        [100, 100],
+      ],
     };
     root.listenRoot(spec, null, null, null);
     expect(root.models_).to.have.length(4);
@@ -293,7 +326,13 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
     });
     expect(root.models_).to.have.length(0);
     root.dispose();
-    spec = {visiblePercentageThresholds: [[0, 10], [10, 10], [30, 30]]};
+    spec = {
+      visiblePercentageThresholds: [
+        [0, 10],
+        [10, 10],
+        [30, 30],
+      ],
+    };
     allowConsoleError(() => {
       // On the [10, 10] and [30, 30] only, again expect user().error(TAG,
       //   'visiblePercentageThresholds entry invalid min/max value')
@@ -338,9 +377,7 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
     expect(otherUnsubscribes.callCount).to.equal(2);
 
     // Viewer and viewport have been unsubscribed.
-    expect(viewer.visibilityObservable_.getHandlerCount()).equal(
-      startVisibilityHandlerCount
-    );
+    expect(getVisibilityHandlerCount()).equal(startVisibilityHandlerCount);
 
     // Intersection observer disconnected.
     expect(inOb.disconnected).to.be.true;
@@ -732,7 +769,7 @@ describes.fakeWin('VisibilityManagerForDoc', {amp: true}, env => {
         return {top: 10, left: 11, width: 110, height: 111};
       },
     };
-    const resources = win.services.resources.obj;
+    const resources = win.__AMP_SERVICES.resources.obj;
     sandbox
       .stub(resources, 'getResourceForElementOptional')
       .callsFake(() => resource);
@@ -790,9 +827,9 @@ describes.realWin(
       clock = sandbox.useFakeTimers();
       clock.tick(1);
 
-      viewport = parentWin.services.viewport.obj;
-      viewer = parentWin.services.viewer.obj;
-      sandbox.stub(viewer, 'getFirstVisibleTime').callsFake(() => 1);
+      viewport = parentWin.__AMP_SERVICES.viewport.obj;
+      viewer = parentWin.__AMP_SERVICES.viewer.obj;
+      sandbox.stub(ampdoc, 'getFirstVisibleTime').returns(1);
 
       parentRoot = new VisibilityManagerForDoc(ampdoc);
       parentWin.IntersectionObserver = IntersectionObserverStub;
@@ -841,7 +878,7 @@ describes.realWin(
       expect(root.getRootVisibility()).to.equal(0);
     });
 
-    it('should initialize correctly foregrounded', () => {
+    it('should initialize correctly in foreground', () => {
       expect(root.parent).to.equal(parentRoot);
       expect(root.ampdoc).to.equal(ampdoc);
       expect(root.getStartTime()).to.equal(embed.getStartTime());
@@ -1019,8 +1056,8 @@ describes.realWin('VisibilityManager integrated', {amp: true}, env => {
     win = env.win;
     doc = win.document;
     ampdoc = env.ampdoc;
-    viewer = win.services.viewer.obj;
-    resources = win.services.resources.obj;
+    viewer = win.__AMP_SERVICES.viewer.obj;
+    resources = win.__AMP_SERVICES.resources.obj;
 
     observeSpy = sandbox.stub();
     unobserveSpy = sandbox.stub();
@@ -1053,9 +1090,7 @@ describes.realWin('VisibilityManager integrated', {amp: true}, env => {
       eventResolver2 = resolve;
     });
 
-    const docState = Services.globalDocumentStateFor(win);
-    sandbox.stub(docState, 'isHidden').callsFake(() => false);
-    sandbox.stub(viewer, 'getFirstVisibleTime').callsFake(() => startTime);
+    sandbox.stub(ampdoc, 'getFirstVisibleTime').callsFake(() => startTime);
 
     ampElement = doc.createElement('amp-img');
     ampElement.id = 'abc';
@@ -1436,7 +1471,10 @@ describes.realWin('VisibilityManager integrated', {amp: true}, env => {
     visibility.listenElement(
       ampElement,
       {
-        'visiblePercentageThresholds': [[0, 30], [50, 100]],
+        'visiblePercentageThresholds': [
+          [0, 30],
+          [50, 100],
+        ],
       },
       Promise.resolve(),
       null,
@@ -1643,3 +1681,49 @@ describes.fakeWin('scroll depth', {amp: true}, env => {
     expect(root.getMaxScrollDepth()).to.equal(400);
   });
 });
+
+describes.realWin(
+  'VisibilityManager in shadow runtime',
+  {amp: 'multi'},
+  env => {
+    let top;
+    let ampdocService;
+    let host, shadowRoot, shadowDoc;
+
+    beforeEach(() => {
+      top = env.win;
+      ampdocService = Services.ampdocServiceFor(top);
+      host = top.document.createElement('div');
+      top.document.body.appendChild(host);
+      shadowRoot = host.attachShadow({mode: 'open'});
+      shadowDoc = ampdocService.installShadowDoc(
+        'https://example.com',
+        shadowRoot
+      );
+      sandbox.stub(Services, 'resourcesForDoc').returns({});
+      sandbox.stub(Services, 'viewportForDoc').returns({
+        onChanged() {},
+      });
+    });
+
+    it('should create a visibility manager for a shadow doc', () => {
+      const vm = provideVisibilityManager(shadowRoot);
+      expect(vm).to.be.instanceOf(VisibilityManagerForDoc);
+      expect(vm.ampdoc).to.equal(shadowDoc);
+    });
+
+    it('should create a visibility manager for a FIE', async () => {
+      const iframe = top.document.createElement('iframe');
+      await new Promise(resolve => {
+        iframe.onload = resolve;
+        iframe.srcdoc = '<div id="div1"></div>';
+        iframe[FIE_EMBED_PROP] = {host: iframe};
+        shadowRoot.appendChild(iframe);
+      });
+      setParentWindow(iframe.contentWindow, top);
+      const vm = provideVisibilityManager(iframe.contentDocument);
+      expect(vm).to.be.instanceOf(VisibilityManagerForEmbed);
+      expect(vm.ampdoc).to.equal(shadowDoc);
+    });
+  }
+);

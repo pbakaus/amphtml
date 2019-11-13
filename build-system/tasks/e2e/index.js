@@ -18,13 +18,15 @@
 
 const argv = require('minimist')(process.argv.slice(2));
 const ciReporter = require('../mocha-ci-reporter');
-const config = require('../../config');
+const config = require('../../test-configs/config');
 const glob = require('glob');
 const log = require('fancy-log');
 const Mocha = require('mocha');
+const path = require('path');
 const tryConnect = require('try-net-connect');
 const {cyan} = require('ansi-colors');
-const {execOrDie, execScriptAsync} = require('../../exec');
+const {execOrDie, execScriptAsync} = require('../../common/exec');
+const {isTravisBuild} = require('../../common/travis');
 const {reportTestStarted} = require('../report-test-status');
 const {watch} = require('gulp');
 
@@ -32,7 +34,7 @@ const HOST = 'localhost';
 const PORT = 8000;
 const WEBSERVER_TIMEOUT_RETRIES = 10;
 const SLOW_TEST_THRESHOLD_MS = 2500;
-const TEST_RETRIES = 2;
+const TEST_RETRIES = isTravisBuild() ? 2 : 0;
 
 let webServerProcess_;
 
@@ -147,13 +149,13 @@ async function e2e() {
     const filesToWatch = argv.files ? [argv.files] : [config.e2eTestPaths];
     const watcher = watch(filesToWatch);
     log('Watching', cyan(filesToWatch), 'for changes...');
-    watcher.on('change', ({path}) => {
-      log('Detected a change in', cyan(path));
+    watcher.on('change', file => {
+      log('Detected a change in', cyan(file));
       log('Running tests...');
       // clear file from node require cache if running test again
-      delete require.cache[path];
+      delete require.cache[path.resolve(file)];
       const mocha = createMocha_();
-      mocha.files = [path];
+      mocha.files = [file];
       mocha.run();
     });
   }
@@ -169,7 +171,7 @@ e2e.description = 'Runs e2e tests';
 e2e.flags = {
   'browsers':
     '  Run only the specified browser tests. Options are ' +
-    '`chrome`, `firefox`.',
+    '`chrome`, `firefox`, `safari`.',
   'config':
     '  Sets the runtime\'s AMP_CONFIG to one of "prod" (default) or "canary"',
   'nobuild': '  Skips building the runtime via `gulp dist --fortesting`',

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import {FrameOverlayManager} from './frame-overlay-manager';
 import {
   MessageType,
   deserializeMessage,
@@ -24,6 +23,7 @@ import {canInspectWindow} from '../../src/iframe-helper';
 import {dev, devAssert} from '../../src/log';
 import {dict} from '../../src/utils/object';
 import {getData} from '../../src/event-helper';
+import {getFrameOverlayManager} from './frame-overlay-manager';
 import {getPositionObserver} from './position-observer';
 
 /** @const */
@@ -80,6 +80,9 @@ export class InaboxMessagingHost {
    * @param {!Array<!HTMLIFrameElement>} iframes
    */
   constructor(win, iframes) {
+    // We want to measure elements relative to the top viewport if possible.
+    const hostWin = canInspectWindow(win.top) ? win.top : win;
+
     /** @private {!Array<!HTMLIFrameElement>} */
     this.iframes_ = iframes;
 
@@ -87,13 +90,13 @@ export class InaboxMessagingHost {
     this.iframeMap_ = Object.create(null);
 
     /** @private {!./position-observer.PositionObserver} */
-    this.positionObserver_ = getPositionObserver(win);
+    this.positionObserver_ = getPositionObserver(hostWin);
 
     /** @private {!NamedObservable} */
     this.msgObservable_ = new NamedObservable();
 
-    /** @private {!FrameOverlayManager} */
-    this.frameOverlayManager_ = new FrameOverlayManager(win);
+    /** @private {!./frame-overlay-manager.FrameOverlayManager} */
+    this.frameOverlayManager_ = getFrameOverlayManager(hostWin);
 
     this.msgObservable_.listen(
       MessageType.SEND_POSITIONS,

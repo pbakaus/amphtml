@@ -212,10 +212,13 @@ describes.sandboxed('Extensions', {}, () => {
 
     it('should install auto undeclared elements for single-doc', () => {
       const ampdoc = Services.ampdocServiceFor(win).getSingleDoc();
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test']).to
-        .be.undefined;
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test-sub'])
-        .to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS && win.__AMP_EXTENDED_ELEMENTS['amp-test']
+      ).to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS &&
+          win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']
+      ).to.be.undefined;
       expect(win.customElements.elements['amp-test']).to.not.exist;
 
       // Resolve the promise.
@@ -227,18 +230,21 @@ describes.sandboxed('Extensions', {}, () => {
         },
         {}
       );
-      expect(win.ampExtendedElements['amp-test']).to.equal(AmpTest);
-      expect(win.ampExtendedElements['amp-test-sub']).to.equal(AmpTestSub);
+      expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.equal(AmpTest);
+      expect(win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']).to.equal(AmpTestSub);
       expect(win.customElements.elements['amp-test']).to.exist;
       expect(ampdoc.declaresExtension('amp-test')).to.be.false;
     });
 
     it('should skip non-auto undeclared elements for single-doc', () => {
       const ampdoc = Services.ampdocServiceFor(win).getSingleDoc();
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test']).to
-        .be.undefined;
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test-sub'])
-        .to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS && win.__AMP_EXTENDED_ELEMENTS['amp-test']
+      ).to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS &&
+          win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']
+      ).to.be.undefined;
       expect(win.customElements.elements['amp-test']).to.not.exist;
 
       // Manually preload extension, which would make it non-auto.
@@ -253,10 +259,13 @@ describes.sandboxed('Extensions', {}, () => {
         },
         {}
       );
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test']).to
-        .be.undefined;
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test-sub'])
-        .to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS && win.__AMP_EXTENDED_ELEMENTS['amp-test']
+      ).to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS &&
+          win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']
+      ).to.be.undefined;
       expect(win.customElements.elements['amp-test']).to.not.exist;
       expect(ampdoc.declaresExtension('amp-test')).to.be.false;
     });
@@ -264,12 +273,15 @@ describes.sandboxed('Extensions', {}, () => {
     it('should install declared elements for single-doc', () => {
       const ampdoc = Services.ampdocServiceFor(win).getSingleDoc();
       ampdoc.declareExtension('amp-test');
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test']).to
-        .be.undefined;
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test-sub'])
-        .to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS && win.__AMP_EXTENDED_ELEMENTS['amp-test']
+      ).to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS &&
+          win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']
+      ).to.be.undefined;
       expect(win.customElements.elements['amp-test']).to.not.exist;
-      expect(win.services['amp-test']).to.not.exist;
+      expect(win.__AMP_SERVICES['amp-test']).to.not.exist;
 
       // Resolve the promise.
       extensions.registerExtension(
@@ -280,19 +292,22 @@ describes.sandboxed('Extensions', {}, () => {
         },
         {}
       );
-      expect(win.ampExtendedElements['amp-test']).to.equal(AmpTest);
-      expect(win.ampExtendedElements['amp-test-sub']).to.equal(AmpTestSub);
+      expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.equal(AmpTest);
+      expect(win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']).to.equal(AmpTestSub);
       expect(win.customElements.elements['amp-test']).to.exist;
-      expect(win.services['amp-test']).to.exist;
+      expect(win.__AMP_SERVICES['amp-test']).to.exist;
     });
 
     it('should install non-auto declared elements for single-doc', () => {
       const ampdoc = Services.ampdocServiceFor(win).getSingleDoc();
       ampdoc.declareExtension('amp-test');
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test']).to
-        .be.undefined;
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test-sub'])
-        .to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS && win.__AMP_EXTENDED_ELEMENTS['amp-test']
+      ).to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS &&
+          win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']
+      ).to.be.undefined;
       expect(win.customElements.elements['amp-test']).to.not.exist;
 
       // Manually preload extension, which would make it non-auto.
@@ -307,8 +322,8 @@ describes.sandboxed('Extensions', {}, () => {
         },
         {}
       );
-      expect(win.ampExtendedElements['amp-test']).to.equal(AmpTest);
-      expect(win.ampExtendedElements['amp-test-sub']).to.equal(AmpTestSub);
+      expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.equal(AmpTest);
+      expect(win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']).to.equal(AmpTestSub);
       expect(win.customElements.elements['amp-test']).to.exist;
       expect(ampdoc.declaresExtension('amp-test')).to.be.true;
     });
@@ -317,10 +332,13 @@ describes.sandboxed('Extensions', {}, () => {
       sandbox
         .stub(Services.ampdocServiceFor(win), 'isSingleDoc')
         .callsFake(() => false);
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test']).to
-        .be.undefined;
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test-sub'])
-        .to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS && win.__AMP_EXTENDED_ELEMENTS['amp-test']
+      ).to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS &&
+          win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']
+      ).to.be.undefined;
       expect(win.customElements.elements['amp-test']).to.not.exist;
 
       // Resolve the promise.
@@ -332,10 +350,13 @@ describes.sandboxed('Extensions', {}, () => {
         },
         {}
       );
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test']).to
-        .be.undefined;
-      expect(win.ampExtendedElements && win.ampExtendedElements['amp-test-sub'])
-        .to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS && win.__AMP_EXTENDED_ELEMENTS['amp-test']
+      ).to.be.undefined;
+      expect(
+        win.__AMP_EXTENDED_ELEMENTS &&
+          win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']
+      ).to.be.undefined;
       expect(win.customElements.elements['amp-test']).to.not.exist;
 
       // Install into shadow doc.
@@ -345,8 +366,10 @@ describes.sandboxed('Extensions', {}, () => {
       const promise = extensions.installExtensionsInDoc(ampdoc, ['amp-test']);
       return promise.then(() => {
         // Resolved later.
-        expect(win.ampExtendedElements['amp-test']).to.equal(AmpTest);
-        expect(win.ampExtendedElements['amp-test-sub']).to.equal(AmpTestSub);
+        expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.equal(AmpTest);
+        expect(win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']).to.equal(
+          AmpTestSub
+        );
         // Extension is now declared.
         expect(ampdoc.declaresExtension('amp-test')).to.be.true;
       });
@@ -580,6 +603,126 @@ describes.sandboxed('Extensions', {}, () => {
         expect(elementClass).to.equal(ctor);
       });
     });
+
+    it('should keep awaiting promise through reload', () => {
+      const script = document.createElement('script');
+      script.setAttribute('custom-element', 'amp-ext');
+      script.setAttribute(
+        'src',
+        'https://cdn.ampproject.org/v0/amp-ext-0.1.js'
+      );
+      win.document.head.appendChild(script);
+
+      // Start waiting immediately.
+      const initialPromise = extensions.preloadExtension('amp-ext');
+
+      // Reload the extension. E.g. due to the version mismatch.
+      const reloadPromise = extensions.reloadExtension('amp-ext');
+
+      // Register extension.
+      extensions.registerExtension('amp-ext', () => {}, {});
+
+      return reloadPromise.then(reloadedExtension => {
+        expect(reloadedExtension).to.exist;
+        return initialPromise.then(initialExtension => {
+          expect(initialExtension).to.equal(reloadedExtension);
+          const newScript = win.document.head.querySelector(
+            'script[custom-element="amp-ext"]:not([i-amphtml-loaded-new-version])'
+          );
+          expect(newScript).to.exist;
+        });
+      });
+    });
+  });
+
+  describes.fakeWin('reloadExtension', {}, env => {
+    let win;
+    let extensions;
+
+    beforeEach(() => {
+      win = env.win;
+      sandbox = env.sandbox;
+
+      sandbox.stub(Services, 'ampdocServiceFor').returns(null);
+      extensions = new Extensions(win);
+      sandbox.stub(extensions, 'preloadExtension');
+    });
+
+    it('should devAssert if script cannot be found', () => {
+      expect(() => {
+        extensions.reloadExtension('amp-list');
+      }).to.throw('Cannot find script for extension: amp-list');
+
+      expect(extensions.preloadExtension).to.not.be.called;
+    });
+
+    it('should ignore inserted scripts', () => {
+      const list = document.createElement('script');
+      list.setAttribute('custom-element', 'amp-list');
+      list.setAttribute('src', 'https://cdn.ampproject.org/v0/amp-list-0.1.js');
+      list.setAttribute('i-amphtml-inserted', '');
+      win.document.head.appendChild(list);
+
+      expect(() => {
+        extensions.reloadExtension('amp-list');
+      }).to.throw('Cannot find script for extension: amp-list');
+
+      expect(list.hasAttribute('i-amphtml-loaded-new-version')).to.be.false;
+      expect(extensions.preloadExtension).to.not.be.called;
+    });
+
+    it('should support [custom-element] scripts', () => {
+      const list = document.createElement('script');
+      list.setAttribute('custom-element', 'amp-list');
+      list.setAttribute('src', 'https://cdn.ampproject.org/v0/amp-list-0.1.js');
+      win.document.head.appendChild(list);
+
+      extensions.reloadExtension('amp-list');
+
+      expect(list.getAttribute('i-amphtml-loaded-new-version')).to.equal(
+        'amp-list'
+      );
+      expect(extensions.preloadExtension).to.be.calledWith('amp-list', '0.1');
+    });
+
+    it('should support [custom-template] scripts', () => {
+      const mustache = document.createElement('script');
+      mustache.setAttribute('custom-template', 'amp-mustache');
+      mustache.setAttribute(
+        'src',
+        'https://cdn.ampproject.org/v0/amp-mustache-0.2.js'
+      );
+      win.document.head.appendChild(mustache);
+
+      extensions.reloadExtension('amp-mustache');
+
+      expect(mustache.getAttribute('i-amphtml-loaded-new-version')).to.equal(
+        'amp-mustache'
+      );
+      expect(extensions.preloadExtension).to.be.calledWith(
+        'amp-mustache',
+        '0.2'
+      );
+    });
+
+    it('should support no-attribute scripts', () => {
+      const viewer = document.createElement('script');
+      viewer.setAttribute(
+        'src',
+        'https://cdn.ampproject.org/v0/amp-viewer-integration-0.1.js'
+      );
+      win.document.head.appendChild(viewer);
+
+      extensions.reloadExtension('amp-viewer-integration');
+
+      expect(viewer.getAttribute('i-amphtml-loaded-new-version')).to.equal(
+        'amp-viewer-integration'
+      );
+      expect(extensions.preloadExtension).to.be.calledWith(
+        'amp-viewer-integration',
+        '0.1'
+      );
+    });
   });
 
   describes.realWin(
@@ -621,6 +764,20 @@ describes.sandboxed('Extensions', {}, () => {
         ).to.have.length(1);
         expect(extensions.extensions_['amp-mustache'].scriptPresent).to.be.true;
         expect(win.customElements.elements['amp-mustache']).to.be.undefined;
+      });
+
+      it('should insert extension script and not colide with prefixes', () => {
+        // First add an extension with the same suffix.
+        extensions.preloadExtension('amp-test-suffix');
+        expect(
+          doc.head.querySelectorAll('[custom-element="amp-test-suffix"]')
+        ).to.have.length(1);
+
+        // Then try to add the prefix-based extension.
+        extensions.preloadExtension('amp-test');
+        expect(
+          doc.head.querySelectorAll('[custom-element="amp-test"]')
+        ).to.have.length(1);
       });
 
       it('should insert extension version correctly', () => {
@@ -674,6 +831,7 @@ describes.sandboxed('Extensions', {}, () => {
       it('should not insert when script exists in head', () => {
         const ampTestScript = doc.createElement('script');
         ampTestScript.setAttribute('custom-element', 'amp-test');
+        ampTestScript.setAttribute('i-amphtml-loaded-new-version', 'amp-test');
         expect(
           doc.head.querySelectorAll('[custom-element="amp-test"]')
         ).to.have.length(0);
@@ -686,10 +844,17 @@ describes.sandboxed('Extensions', {}, () => {
         extensions.preloadExtension('amp-test');
         expect(
           doc.head.querySelectorAll('[custom-element="amp-test"]')
+        ).to.have.length(2);
+        expect(
+          doc.head.querySelectorAll(
+            '[custom-element="amp-test"]' +
+              ':not([i-amphtml-loaded-new-version])' +
+              '[i-amphtml-inserted]'
+          )
         ).to.have.length(1);
         expect(extensions.extensions_['amp-test'].scriptPresent).to.be.true;
         expect(win.customElements.elements['amp-test']).to.not.exist;
-        expect(win.ampExtendedElements['amp-test']).to.be.undefined;
+        expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.be.undefined;
       });
 
       it('should give script correct attributes', () => {
@@ -704,6 +869,7 @@ describes.sandboxed('Extensions', {}, () => {
         const script = doc.head.querySelector('[custom-element="amp-test"]');
         expect(script.getAttribute('data-script')).to.equal('amp-test');
         expect(script.getAttribute('async')).to.equal('');
+        expect(script.getAttribute('crossorigin')).to.equal('anonymous');
       });
 
       it('should insert special-case for amp-embed script', () => {
@@ -755,7 +921,7 @@ describes.sandboxed('Extensions', {}, () => {
           doc.head.querySelectorAll('[custom-element="amp-test"]')
         ).to.have.length(1);
         expect(extensions.extensions_['amp-test'].scriptPresent).to.be.true;
-        expect(win.ampExtendedElements['amp-test']).to.equal(ElementStub);
+        expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.equal(ElementStub);
       });
 
       it('should stub main extension immediately', () => {
@@ -766,8 +932,8 @@ describes.sandboxed('Extensions', {}, () => {
         expect(ampdoc.declaresExtension('amp-test')).to.be.false;
 
         // Stubbed immediately.
-        expect(win.ampExtendedElements['amp-test']).to.equal(ElementStub);
-        expect(win.ampExtendedElements['amp-test-sub']).to.be.undefined;
+        expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.equal(ElementStub);
+        expect(win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']).to.be.undefined;
         expect(win.customElements.elements['amp-test']).to.exist;
 
         // Resolve the promise.
@@ -783,8 +949,10 @@ describes.sandboxed('Extensions', {}, () => {
         );
         return promise.then(() => {
           // Resolved later.
-          expect(win.ampExtendedElements['amp-test']).to.equal(AmpTest);
-          expect(win.ampExtendedElements['amp-test-sub']).to.equal(AmpTestSub);
+          expect(win.__AMP_EXTENDED_ELEMENTS['amp-test']).to.equal(AmpTest);
+          expect(win.__AMP_EXTENDED_ELEMENTS['amp-test-sub']).to.equal(
+            AmpTestSub
+          );
           // Extension is now declared.
           expect(ampdoc.declaresExtension('amp-test')).to.be.true;
         });
