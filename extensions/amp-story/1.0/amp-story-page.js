@@ -55,8 +55,6 @@ import {VideoEvents, delegateAutoplay} from '../../../src/video-interface';
 import {VideoUtils} from '../../../src/utils/video';
 import {
   childElement,
-  childElementByTag,
-  childElementsByTag,
   closestAncestorElementBySelector,
   createElementWithAttributes,
   isAmpElement,
@@ -1389,6 +1387,7 @@ export class AmpStoryPage extends AMP.BaseElement {
     setStyle(ampImg, 'transform', '');
     setStyle(ampImg, 'transform-origin', '');
     this.activePanelTransformOrigin = null;
+    this.activePanel = null;
   }
 
   /**
