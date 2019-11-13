@@ -298,7 +298,6 @@ export class AmpStoryPage extends AMP.BaseElement {
     /** @private {?string} A textual description of the content of the page. */
     this.description_ = null;
 
-    
     this.panels_ = Array.prototype.slice.call(
       this.element.querySelectorAll('amp-story-panel')
     );
@@ -1249,6 +1248,14 @@ export class AmpStoryPage extends AMP.BaseElement {
   next(isAutomaticAdvance = false) {
     const pageId = this.getNextPageId(isAutomaticAdvance);
 
+    if (this.hasPanels_()) {
+      if (this.hasFollowingPanel_(NavigationDirection.NEXT)) {
+        this.animateToFollowingPanel_();
+        return;
+      }
+      this.resetPanels_();
+    }
+
     if (!pageId) {
       dispatch(
         this.win,
@@ -1258,14 +1265,6 @@ export class AmpStoryPage extends AMP.BaseElement {
         {bubbles: true}
       );
       return;
-    }
-
-    if (this.hasPanels_()) {
-      if (this.hasFollowingPanel_(NavigationDirection.NEXT)) {
-        this.animateToFollowingPanel_();
-        return;
-      }
-      this.resetPanels_();
     }
 
     this.switchTo_(pageId, NavigationDirection.NEXT);
@@ -1323,8 +1322,6 @@ export class AmpStoryPage extends AMP.BaseElement {
     const ampImg = this.element.querySelector('amp-img');
     const img = ampImg.querySelector('img');
 
-    const {naturalWidth: imgWidth, naturalHeight: imgHeight} = img;
-
     const top = parseInt(this.activePanel.getAttribute('top'), 10);
     const left = parseInt(this.activePanel.getAttribute('left'), 10);
     const width = parseInt(this.activePanel.getAttribute('width'), 10);
@@ -1333,33 +1330,52 @@ export class AmpStoryPage extends AMP.BaseElement {
     const ratioX = innerWidth / img.naturalWidth;
     const ratioY = innerHeight / img.naturalHeight;
 
-    if (ratioX < ratioY) {
-      const panelTallerThanViewport = width / height < innerWidth / innerHeight;
-      console.log('panel is shorter than viewport: ', panelTallerThanViewport);
+    const sizingRatio = ratioX < ratioY ? ratioX : ratioY;
 
-      const scaleFactor = panelTallerThanViewport
-        ? innerHeight / (height * ratioX)
-        : innerWidth / (width * ratioX);
-      console.log('scaleFactor:', scaleFactor);
+    const panelTallerThanViewport = width / height < innerWidth / innerHeight;
+    console.log('panelTallerThanViewport: ', panelTallerThanViewport);
 
-      const originX = (left + width / 2) * ratioX;
-      const originY = (top + height / 2) * ratioX;
-      setStyle(
-        ampImg,
-        'transform-origin',
-        (left + width / 2) * ratioX + 'px ' + (top + height / 2) * ratioX + 'px'
-      );
-      console.log('transform-origin: ', originX + 'px ' + originY + 'px');
+    const scaleFactor = panelTallerThanViewport
+      ? innerHeight / (height * sizingRatio)
+      : innerWidth / (width * sizingRatio);
 
-      console.log();
-      setStyle(
-        ampImg,
-        'transform',
-        translate(-originX + innerWidth / 2, -originY + innerHeight / 2) +
-        translate(0, -(innerHeight - ampImg.offsetHeight) / 2) + // center page
-        scale(scaleFactor) // scale to fit panel
-      );
+    // to letterbox the image in both directions, we need to use object-fit: contain,
+    // but that means we have to add the letterbox offset to our calculations..
+    const imgHeight = img.naturalHeight * sizingRatio;
+    const imgWidth = img.naturalWidth * sizingRatio;
+    const containHeightOffset = (innerHeight - imgHeight) / 2;
+    const containWidthOffset = (innerWidth - imgWidth) / 2;
+
+    // calculate the correct transform origin, so the image zooms into the actual
+    // center of the panel
+    const originX = (left + width / 2) * sizingRatio;
+    const originY = (top + height / 2) * sizingRatio;
+    setStyle(
+      ampImg,
+      'transform-origin',
+      originX +
+        containWidthOffset +
+        'px ' +
+        (originY + containHeightOffset) +
+        'px'
+    );
+
+    // if there is a previously stored transform origin in place, we have to offset
+    // from that origin to the next..
+    if (this.activePanelTransformOrigin) {
+      // TODO
     }
+
+    setStyle(
+      ampImg,
+      'transform',
+      translate(
+        -(originX + containWidthOffset) + innerWidth / 2,
+        -(originY + containHeightOffset) + innerHeight / 2
+      ) + scale(scaleFactor) // scale to fit panel
+    );
+
+    this.activePanelTransformOrigin = [originX, originY];
 
     return;
   }
@@ -1369,8 +1385,10 @@ export class AmpStoryPage extends AMP.BaseElement {
    */
   resetPanels_() {
     // TODO: don't animate
-    const ampImg = childElementByTag(this.element, 'amp-img');
+    const ampImg = this.element.querySelector('amp-img');
     setStyle(ampImg, 'transform', '');
+    setStyle(ampImg, 'transform-origin', '');
+    this.activePanelTransformOrigin = null;
   }
 
   /**
